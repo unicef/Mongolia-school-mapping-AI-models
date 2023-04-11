@@ -128,18 +128,6 @@ python src/pipeline.py
 By default, the pipeline will run predictions using the YOLO model.\
 This can be overridden by providing a value for the "-m" parameter:
 ```
-python src/pipeline.py -m tf
-```
-The path for the stage input and output can also be provided via **"-i"** option for input and 
-**"-o"** option for output path:
-```
-python src/pipeline.py -m tf -i NEW_INPUT_DIR_PATH -o NEW_OUTPUT_DIR_PATH
-```
-> Providing path to input or output folders will override specific path provided in the 
-> **params.yaml** file.
-
-> If you get the error **ModuleNotFoundError: No module named 'src'** when running the code,
-> try adding "." to the PYTHONPATH environment variable.
 
 
 
