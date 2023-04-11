@@ -1,27 +1,47 @@
+# UNICEF_Talent
 
 ## Content
 1. [Project directories structure](#project-directories-structure)
 2. [Model files](#model-files)
-    * 2.1 [DETR models](#tensorflow-models)
-    * 2.2 [EFFICIENT-NET](#efficientNet-version-b5)
-    * 2.3 [YOLTv5](#yoltv5)
-      * 2.3.1 [How it works](#how-it-works)
-      * 2.3.2 [How to use](#how-to-use)
+    * 2.1 [Tensorflow models](#tensorflow-models)
+    * 2.2 [YOLTv5](#yoltv5)
+      * 2.2.1 [How it works](#how-it-works)
+      * 2.2.2 [How to use](#how-to-use)
 3. [Pipeline](#pipeline)
     * 3.1 [How pipeline works](#how-pipeline-works)
 
 ## Project directories structure
 
 ```
+data
+└─── models                                  - saved models and weights
+└─── temp                                    - temporary folder containing images slices, created only during debugging
 src                                          - contains the entire source code
 └─── stages                                  - pipeline stages scripts
 │   └─── preprocessing.py                    - preprocessing tasks
 │   └─── prediction.py                       - prediction running tasks
 │   └─── postprocessing.py                   - postprocessing tasks
-└─── detr                                    - source code related to detr solution    
-└─── effecientnet                            - source code related to efficientnet solution   
+└─── tf                                      - source code related to TensorFlow solution    
+│   └─── models                              - TensorFlow models 
+│   │   └─── common.py                       - base class implementation inherited by all TensorFlow models
+│   │   └─── ensemble.py                     - an ensemble model implementation that combines results from object classifier and object localizer
+│   │   └─── object_localizer.py             - object localization model
+│   │   └─── object_classifier.py            - object classification model
+│   │   └─── loss_learning_rate_scheduler.py - adaptive learning rate scheduler
+│   │   └─── loss_utils.py                   - custom loss functions
+│   │   └─── model_utils.py                  - utilities for working with models
+│   │   └─── patch_encoder.py                - patches encoder for the ViT model
+│   │   └─── patches.py                      - creates patches for the ViT model
+│   │   └─── resnet.py                       - common functionalities inherited by all ResNet models
+│   │   └─── resnet101.py                    - 101-layer ResNet model
+│   │   └─── resnet18.py                     - custom 18-layers ResNet model
+│   │   └─── resnet50.py                     - 50-layers ResNet model
+│   │   └─── run_ensemble.py                 - runs the ensemble model prediction
+│   │   └─── transformer.py                  - ViT model implementation
+│   │   └─── vgg19.py                        - VGG19 model implementation
+│   └─── utils                               - utility code
 └─── yolo                                    - source code related to Yolo solution 
-│   
+│    └─── models                             - Yolo models
 └─── balanced_data_generator.py              - balanced data generator implementation
 └─── bbox_utils.py                           - utility function used for processing the bounding boxes data
 └─── cli.py                                  - provides access to CLI parameters
@@ -32,6 +52,40 @@ src                                          - contains the entire source code
 └─── utils.py                                - general utility functions
 README.md                                    - project description and other documentation
 ```
+
+## Model files
+
+### TensorFlow models
+
+All TensorFlow models inherit from the BaseModel class stored in the **src/tensorflow/models/common.py** script.\
+Prediction with TensorFlow models is run in two phases:
+1. Object classification;
+2. Object localization.
+
+In the object classification phase an image is split into a number of tiles of specific size and than object classification
+is run on each tile that contains schools.\
+In the object localization phase each tile from the object classification phase is further split into smaller tiles 
+and the object localization is run on each tile. 
+
+The number of tiles is determined using the following formula:
+```
+tiles_x = math.ceil((image_width - model_input_shape_x) / stride_per_x) + 1
+tiles_y = math.ceil((image_height - model_input_shape_y) / stride_per_y) + 1
+```
+where:
+* **image_width, image_height** - dimensions of images used for prediction
+* **model_input_shape_x, model_input_shape_y** - dimensions of the images that are used for the model training
+* **stride_per_x, stride_per_y** - horizontal and vertical distance between centers of the two adjacent tiles
+
+Two main classes for loading saved models are **ObjectClassifier** (src/tf/models/object_classifier.py) and 
+**ObjectLocalizer** (src/tf/models/object_localizer.py).\
+The main difference between the object classifier and the object localizer ML models is in the input shape of images that they were trained on.\
+The object classifier models are trained on 256x256 images while the object localizer models are trained on smaller image patches like 92x92 pixels in size.
+
+The object classifer and the object localizer use sliding window approach except that the object localizer has additional additional step and that is it selects only those bounding boxes, from the list of overlapping bounding boxes, that have the highest probability that they contain school buildings.
+
+There is additional **EnsembleModel** class that combines output of the object classifier and the object localizer for the final prediction.
+<br/>
 
 ### YOLTv5
 
